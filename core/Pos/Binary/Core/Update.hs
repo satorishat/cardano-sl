@@ -24,9 +24,7 @@ import           Pos.Crypto (Hash)
 
 instance Bi U.ApplicationName where
     encode appName = encode (U.getApplicationName appName)
-    decode = do
-        appName <- decode
-        U.mkApplicationName appName
+    decode = U.ApplicationName <$> decode
 
 deriveSimpleBi ''U.BlockVersion [
     Cons 'U.BlockVersion [
@@ -86,9 +84,7 @@ deriveSimpleBi ''U.BlockVersionModifier [
 
 instance Bi U.SystemTag where
     encode = encode . U.getSystemTag
-    decode = decode >>= \decoded -> case U.mkSystemTag decoded of
-        Left e   -> fail e
-        Right st -> pure st
+    decode = U.SystemTag <$> decode
 
 deriveSimpleBi ''U.UpdateData [
     Cons 'U.UpdateData [
@@ -118,16 +114,13 @@ instance HasConfiguration => Bi U.UpdateProposal where
             <> encode (U.upSignature up)
     decode = do
         enforceSize "UpdateProposal" 7
-        up <- U.mkUpdateProposal <$> decode
-                                <*> decode
-                                <*> decode
-                                <*> decode
-                                <*> decode
-                                <*> decode
-                                <*> decode
-        case up of
-            Left e  -> fail e
-            Right p -> pure p
+        U.UnsafeUpdateProposal <$> decode
+                               <*> decode
+                               <*> decode
+                               <*> decode
+                               <*> decode
+                               <*> decode
+                               <*> decode
 
 instance HasConfiguration => Bi U.UpdateVote where
     encode uv =  encodeListLen 4
@@ -141,9 +134,12 @@ instance HasConfiguration => Bi U.UpdateVote where
         uvProposalId <- decode
         uvDecision   <- decode
         uvSignature  <- decode
+        pure U.UnsafeUpdateVote{..}
+        {-
         case U.validateUpdateVote U.UnsafeUpdateVote{..} of
             Left err -> fail $ toString ("decode@UpdateVote: " <> err)
             Right uv -> pure uv
+        -}
 
 deriveSimpleBiCxt [t|HasConfiguration|] ''U.UpdatePayload [
     Cons 'U.UpdatePayload [

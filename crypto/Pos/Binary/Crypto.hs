@@ -189,9 +189,12 @@ instance (Bi w, HasCryptoConfiguration) => Bi (ProxySecretKey w) where
         pskIssuerPk   <- decode
         pskDelegatePk <- decode
         pskCert       <- decode
+        pure UnsafeProxySecretKey {..}
+        {-
         case validateProxySecretKey UnsafeProxySecretKey{..} of
             Left err  -> fail $ toString ("decode@ProxySecretKey: " <> err)
             Right psk -> pure psk
+        -}
 
 instance (Typeable a, Bi w, HasCryptoConfiguration) =>
          Bi (ProxySignature w a) where
@@ -205,6 +208,7 @@ instance (Typeable a, Bi w, HasCryptoConfiguration) =>
 
 instance Bi PassPhrase where
     encode pp = encode (ByteArray.convert pp :: ByteString)
+    -- FIXME do not validate here...
     decode = do
         bs <- decode @ByteString
         let bl = BS.length bs
