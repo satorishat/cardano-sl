@@ -63,7 +63,7 @@ import           Data.Data (Data)
 import           Data.Hashable (Hashable (..))
 import qualified Data.Semigroup (Semigroup (..))
 import qualified Data.Text.Buildable as Buildable
-import           Formatting (Format, bprint, build, formatToString, int, later, (%))
+import           Formatting (Format, bprint, build, sformat, int, later, (%))
 import qualified PlutusCore.Program as PLCore
 import           Serokell.Util (enumerate, listChunkedJson, pairBuilder)
 import           Serokell.Util.Base16 (formatBase16)
@@ -289,10 +289,13 @@ maxCoinVal = 45000000000000000
 
 -- | Make Coin from Word64.
 mkCoin :: Word64 -> Coin
-mkCoin c
-    | c <= maxCoinVal = Coin c
-    | otherwise       = error $ "mkCoin: " <> show c <> " is too large"
-{-# INLINE mkCoin #-}
+mkCoin = Coin
+
+checkCoin :: MonadError Text m => Coin -> m ()
+checkCoin (Coin c)
+    | c <= maxCoinVal = pure ()
+    | otherwise       = throwError $ "Coin: " <> show c <> " is too large"
+{-# INLINE checkCoin #-}
 
 -- | Coin formatter which restricts type.
 coinF :: Format r (Coin -> r)
@@ -329,14 +332,14 @@ instance Bounded CoinPortion where
 -- | Make 'CoinPortion' from 'Word64' checking whether it is not greater
 -- than 'coinPortionDenominator'.
 mkCoinPortion
-    :: MonadFail m
+    :: MonadError Text m
     => Word64 -> m CoinPortion
 mkCoinPortion x
     | x <= coinPortionDenominator = pure $ CoinPortion x
-    | otherwise = fail err
+    | otherwise = throwError err
   where
     err =
-        formatToString
+        sformat
             ("mkCoinPortion: value is greater than coinPortionDenominator: "
             %int) x
 
