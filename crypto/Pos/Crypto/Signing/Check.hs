@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds #-}
+
 -- | Functions for verifying signatures.
 --
 -- TODO: the "Pos.Crypto.Signing" hierarchy looks like a mess and should be
@@ -8,22 +10,20 @@
 module Pos.Crypto.Signing.Check
        ( checkSig
        , checkSigRaw
-       , verifyProxyCert
-       , validateProxySecretKey
        ) where
 
 import           Universum
 
 import qualified Cardano.Crypto.Wallet as CC
-import           Control.Monad.Except (MonadError, throwError)
 import           Data.Coerce (coerce)
 
 import           Pos.Binary.Class (Bi, Raw)
 import qualified Pos.Binary.Class as Bi
 import           Pos.Crypto.Configuration (HasCryptoConfiguration)
 import           Pos.Crypto.Signing.Tag (signTag)
-import           Pos.Crypto.Signing.Types (ProxyCert (..), ProxySecretKey (..), PublicKey (..),
-                                           SignTag (..), Signature (..))
+import           Pos.Crypto.Signing.Types (ProxyCert (..), ProxySecretKey (..), ProxySignature (..),
+                                           PublicKey (..), SignTag (..), Signature (..))
+import           Pos.Util.Verification (Verifiable (..), verMFail, verMField)
 
 -- CHECK: @checkSig
 -- | Verify a signature.
@@ -51,19 +51,27 @@ checkSigRaw mbTag (PublicKey k) x (Signature s) = CC.verify k (tag <> x) s
     tag = maybe mempty signTag mbTag
 
 -- | Checks if certificate is valid, given issuer pk, delegate pk and ω.
-verifyProxyCert :: (HasCryptoConfiguration, Bi w) => PublicKey -> PublicKey -> w -> ProxyCert w -> Bool
+verifyProxyCert ::
+       (HasCryptoConfiguration, Bi w)
+    => PublicKey
+    -> PublicKey
+    -> w
+    -> ProxyCert w
+    -> Bool
 verifyProxyCert issuerPk (PublicKey delegatePk) o (ProxyCert sig) =
     checkSig SignProxySK issuerPk
         (mconcat ["00", CC.unXPub delegatePk, Bi.serialize' o])
         (Signature sig)
 
--- | Return the key if it's valid, and throw an error otherwise.
-validateProxySecretKey
-    :: (HasCryptoConfiguration, MonadError Text m, Bi w)
-    => ProxySecretKey w
-    -> m (ProxySecretKey w)
-validateProxySecretKey psk =
-    if verifyProxyCert (pskIssuerPk psk) (pskDelegatePk psk)
-                       (pskOmega psk) (pskCert psk)
-        then pure psk
-        else throwError "a ProxySecretKey has an invalid signature"
+instance (Bi w, Buildable w, Bi PublicKey, HasCryptoConfiguration) =>
+         Verifiable (ProxySecretKey w) where
+  verify psk@UnsafeProxySecretKey{..} = do
+      unless (verifyProxyCert pskIssuerPk pskDelegatePk pskOmega pskCert) $
+          verMFail $ "PSK " <> pretty psk <> " is invalid"
+      pure $ coerce psk
+
+instance (Bi w, Buildable w, Bi PublicKey, HasCryptoConfiguration) =>
+         Verifiable (ProxySignature w a) where
+  verify UnsafeProxySignature {..} = do
+    psigPsk' <- verMField "psigPsk" $ verify psigPsk
+    pure $ UnsafeProxySignature psigPsk' psigSig
