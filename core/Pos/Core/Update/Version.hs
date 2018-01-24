@@ -7,14 +7,14 @@ module Pos.Core.Update.Version
 
 import           Universum
 
-import qualified Data.Text as T (unpack)
 import           Serokell.Util.Parse (parseIntegralSafe)
-import           Text.Parsec (parserFail, try)
+import           Text.Parsec (try)
 import           Text.Parsec.Char (alphaNum, char, letter, string)
 import           Text.Parsec.Combinator (manyTill)
 import           Text.Parsec.Text (Parser)
 
-import           Pos.Core.Update.Types (BlockVersion (..), SoftwareVersion (..), mkApplicationName)
+import           Pos.Core.Update.Types (BlockVersion (..), SoftwareVersion (..),
+                                        ApplicationName (..))
 import           Pos.Util.Orphans ()
 
 parseBlockVersion :: Parser BlockVersion
@@ -29,7 +29,7 @@ parseBlockVersion = do
 parseSoftwareVersion :: Parser SoftwareVersion
 parseSoftwareVersion = do
     svAppName <-
-        either (parserFail . T.unpack) pure . mkApplicationName . toText =<<
+        pure . ApplicationName . toText =<<
         ((:) <$> letter <*> manyTill (alphaNum <|> char '-') (try $ string ":"))
     svNumber <- parseIntegralSafe
     return SoftwareVersion {..}

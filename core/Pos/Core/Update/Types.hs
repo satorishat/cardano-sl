@@ -7,7 +7,7 @@ module Pos.Core.Update.Types
          -- * Version
          ApplicationName (..)
        , applicationNameMaxLength
-       , mkApplicationName
+       , checkApplicationName
        , BlockVersion (..)
        , NumSoftwareVersion
        , SoftwareVersion (..)
@@ -25,7 +25,7 @@ module Pos.Core.Update.Types
        , UpdateData (..)
        , UpdateProposalToSign (..)
        , SystemTag (..)
-       , mkSystemTag
+       , checkSystemTag
        , systemTagMaxLength
 
          -- * UpdateVote and related
@@ -86,13 +86,13 @@ newtype ApplicationName = ApplicationName
     } deriving (Eq, Ord, Show, Generic, Typeable, ToString, Hashable, Buildable, NFData)
 
 -- | Smart constructor of 'ApplicationName'.
-mkApplicationName :: MonadError Text m => Text -> m ApplicationName
-mkApplicationName appName
+checkApplicationName :: MonadError Text m => ApplicationName -> m ()
+checkApplicationName (ApplicationName appName)
     | length appName > applicationNameMaxLength =
         throwError "ApplicationName: too long string passed"
     | T.any (not . isAscii) appName =
         throwError "ApplicationName: not ascii string passed"
-    | otherwise = pure $ ApplicationName appName
+    | otherwise = pure ()
 
 applicationNameMaxLength :: Integral i => i
 applicationNameMaxLength = 12
@@ -293,13 +293,14 @@ newtype SystemTag = SystemTag { getSystemTag :: Text }
 systemTagMaxLength :: Integral i => i
 systemTagMaxLength = 10
 
-mkSystemTag :: MonadError Text m => Text -> m SystemTag
-mkSystemTag tag | T.length tag > systemTagMaxLength
-                    = throwError "SystemTag: too long string passed"
-                | T.any (not . isAscii) tag
-                    = throwError "SystemTag: not ascii string passed"
-                | otherwise
-                    = pure $ SystemTag tag
+checkSystemTag :: MonadError Text m => SystemTag -> m ()
+checkSystemTag (SystemTag tag)
+    | T.length tag > systemTagMaxLength
+          = throwError "SystemTag: too long string passed"
+    | T.any (not . isAscii) tag
+          = throwError "SystemTag: not ascii string passed"
+    | otherwise
+          = pure ()
 
 -- | ID of software update proposal
 type UpId = Hash UpdateProposal
