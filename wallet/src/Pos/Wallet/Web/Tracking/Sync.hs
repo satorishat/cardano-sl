@@ -223,6 +223,7 @@ syncWalletWithGStateUnsafe
     -> BlockHeader ssc         -- ^ GState header hash
     -> m ()
 syncWalletWithGStateUnsafe encSK wTipHeader gstateH = setLogger $ do
+    -- XXX Transaction
     systemStart  <- getSystemStartM
     slottingData <- GS.getSlottingData
     db <- WS.askWalletDB
@@ -290,7 +291,7 @@ syncWalletWithGStateUnsafe encSK wTipHeader gstateH = setLogger $ do
 
     startFromH <- maybe firstGenesisHeader pure wTipHeader
     mapModifier@CAccModifier{..} <- computeAccModifier startFromH
-    applyModifierToWallet wAddr gstateHHash mapModifier
+    applyModifierToWallet db wAddr gstateHHash mapModifier
     -- Mark the wallet as ready, so it will be available from api endpoints.
     WS.setWalletReady db wAddr True
     logInfoS $
@@ -423,19 +424,13 @@ selectOwnTxInsAndOuts encInfo (WithHash tx txId, NE.toList -> undoL) (mDiff, mTs
     (ownInputs, map (first toTxInOut) ownOutputs, th)
 
 applyModifierToWallet
-    :: ( WalletDbReader ctx m
-       , WalletDbWriter A.UpdateWalletBalancesAndUtxo m
-       , HasConfiguration
-       )
-    => CId Wal
+    :: WalletDbWriter A.ApplyModifierToWallet m
+    => WalletDB
+    -> CId Wal
     -> HeaderHash
     -> CAccModifier
     -> m ()
-applyModifierToWallet wid newTip CAccModifier{..} = do
-    db <- WS.askWalletDB
-    -- TODO maybe do it as one acid-state transaction.
-    -- XXX Transaction
-
+applyModifierToWallet db wid newTip CAccModifier{..} = do
     let cMetas = mapMaybe (\THEntry {..} -> (\mts -> (encodeCType _thTxId
                                                      , CTxMeta . timestampToPosix $ mts)
                                             ) <$> _thTimestamp)
@@ -455,13 +450,15 @@ applyModifierToWallet wid newTip CAccModifier{..} = do
       newTip
 
 rollbackModifierFromWallet
-    :: (WalletDbReader ctx m, MonadSlots ctx m, HasConfiguration)
-    => CId Wal
+    :: ( MonadSlots ctx m
+       , WalletDbWriter A.RollbackModifierFromWallet m
+       )
+    => WalletDB
+    -> CId Wal
     -> HeaderHash
     -> CAccModifier
     -> m ()
-rollbackModifierFromWallet wid newTip CAccModifier{..} = do
-    db <- WS.askWalletDB
+rollbackModifierFromWallet db wid newTip CAccModifier{..} = do
     curSlot <- getCurrentSlotInaccurate
 
     WS.rollbackModifierFromWallet

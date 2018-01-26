@@ -67,9 +67,7 @@ import           Pos.Wallet.Web.Util          (decodeCTypeOrFail, testOnlyEndpoi
 ----------------------------------------------------------------------------
 
 getUserProfile :: MonadWalletWebMode m => m CProfile
-getUserProfile = do
-    ws <- askWalletSnapshot
-    return (getProfile ws)
+getUserProfile = getProfile <$> askWalletSnapshot
 
 updateUserProfile :: MonadWalletWebMode m => CProfile -> m CProfile
 updateUserProfile profile = do

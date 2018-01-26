@@ -60,7 +60,7 @@ import           Pos.Wallet.Web.Methods.Txp       (coinDistrToOutputs,
 import           Pos.Wallet.Web.Mode              (MonadWalletWebMode, WalletWebMode,
                                                    convertCIdTOAddrs)
 import           Pos.Wallet.Web.Pending           (mkPendingTx)
-import           Pos.Wallet.Web.State             (WalletSnapshot, askWalletSnapshot,
+import           Pos.Wallet.Web.State             (WalletSnapshot, askWalletDB, askWalletSnapshot,
                                                    AddressLookupMode (Ever, Existing), AddressInfo (..))
 import           Pos.Wallet.Web.Util              (decodeCTypeOrFail,
                                                    getAccountAddrsOrThrow,
@@ -247,7 +247,9 @@ sendMoney SendActions{..} ws passphrase moneySource dstDistr policy = do
         (toList srcAddrs)
         dstAddrs
 
-    addHistoryTx srcWallet th
+    -- XXX rewrite
+    db <- askWalletDB
+    addHistoryTx db srcWallet th
     diff <- getCurChainDifficulty
     let srcWalletAddrsDetector = getWalletAddrsDetector ws Ever srcWallet
 

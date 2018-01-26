@@ -77,7 +77,7 @@ acidCleanupWorker :: HasConfigurations => WalletArgs -> ([WorkerSpec WalletWebMo
 acidCleanupWorker WalletArgs{..} =
     first one $ worker mempty $ const $
     modifyLoggerName (const "acidcleanup") $
-    cleanupAcidStatePeriodically walletAcidInterval
+    (askWalletDB >>= \db -> cleanupAcidStatePeriodically db walletAcidInterval)
 
 walletProd :: HasConfigurations => WalletArgs -> ([WorkerSpec WalletWebMode], OutSpecs)
 walletProd WalletArgs {..} = first one $ worker walletServerOuts $ \sendActions -> do

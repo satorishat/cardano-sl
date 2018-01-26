@@ -209,6 +209,8 @@ newAddress_ ws addGenSeed passphrase accId = do
     let parentExists = doesAccountExist ws accId
     unless parentExists $ throwM noAccount
 
+    -- XXX Transaction
+    -- Make 'newAddress' generate a unique name internally
     cAccAddr <- genUniqueAddress ws addGenSeed passphrase accId
     db <- askWalletDB
     addWAddress db cAccAddr
